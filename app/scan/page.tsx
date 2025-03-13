@@ -4,15 +4,14 @@ import { useState, useRef } from "react";
 import { Html5QrcodeScanner } from "html5-qrcode";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CheckCircle, XCircle, Camera, Settings } from "lucide-react";
+import { Camera, CheckCircle } from "lucide-react";
 
-export default function ScanAttendancePage() {
-  const [loading, setLoading] = useState(false);
-  const [scannedUser, setScannedUser] = useState<{ name: string; status: string } | null>(null);
-  const scannerRef = useRef<HTMLDivElement>(null);
+export default function QRScannerPage() {
+  const [scannedResult, setScannedResult] = useState<string>("");
+  const [cameraActive, setCameraActive] = useState<boolean>(false);
   const [scanner, setScanner] = useState<Html5QrcodeScanner | null>(null);
-  const [cameraActive, setCameraActive] = useState(false);
-  const [permissionDenied, setPermissionDenied] = useState(false);
+  const [permissionDenied, setPermissionDenied] = useState<boolean>(false);
+  const scannerRef = useRef<HTMLDivElement>(null);
 
   const startScanner = async () => {
     try {
@@ -26,21 +25,22 @@ export default function ScanAttendancePage() {
       if (!scanner && scannerRef.current) {
         const qrScanner = new Html5QrcodeScanner(
           "qr-reader",
-          { fps: 10, qrbox: { width: 250, height: 250 } },
+          { 
+            fps: 10, 
+            qrbox: { width: 250, height: 250 },
+            aspectRatio: 1.0,
+            showTorchButtonIfSupported: true,
+            showZoomSliderIfSupported: true,
+          },
           false
         );
 
         qrScanner.render(
-          (decodedText) => {
-            setLoading(true);
-            setTimeout(() => {
-              setScannedUser({ name: decodedText, status: "Asistencia Confirmada" });
-              setLoading(false);
-              qrScanner.clear();
-              setCameraActive(false);
-            }, 2000);
+          (decodedText: string) => {
+            setScannedResult(decodedText);
+            // No detiene el escáner automáticamente para permitir escaneos múltiples
           },
-          (errorMessage) => {
+          (errorMessage: string) => {
             console.warn("QR Error:", errorMessage);
           }
         );
@@ -53,54 +53,52 @@ export default function ScanAttendancePage() {
     }
   };
 
-  const openAppSettings = () => {
-    if (typeof window !== "undefined" && window.navigator) {
-      window.location.href = "app-settings:";
+  const stopScanner = () => {
+    if (scanner) {
+      scanner.clear();
+      setScanner(null);
     }
+    setCameraActive(false);
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen p-6">
-      {loading && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-          <div className="p-4 bg-white rounded-lg flex flex-col items-center gap-2">
-            <p className="text-lg font-semibold">Procesando...</p>
-            <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-blue-500"></div>
-          </div>
-        </div>
-      )}
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle>Escanear Asistencia</CardTitle>
+    <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-gray-100">
+      <Card className="w-full max-w-md shadow-lg">
+        <CardHeader className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-t-lg">
+          <CardTitle className="text-center">Escáner de Código QR</CardTitle>
         </CardHeader>
-        <CardContent className="flex flex-col items-center gap-4">
+        <CardContent className="flex flex-col items-center gap-4 p-4">
           {cameraActive ? (
-            <div id="qr-reader" ref={scannerRef} className="w-full h-60 bg-gray-300 rounded-lg"></div>
-          ) : (
             <>
-              <Button onClick={startScanner} className="w-full">
-                <Camera className="h-5 w-5 mr-2" /> Activar Cámara
+              <div id="qr-reader" ref={scannerRef} className="w-full max-w-sm rounded-lg overflow-hidden"></div>
+              <Button onClick={stopScanner} variant="destructive" className="w-full mt-2">
+                Detener Cámara
               </Button>
-              {permissionDenied && (
-                <Button onClick={openAppSettings} variant="outline" className="w-full">
-                  <Settings className="h-5 w-5 mr-2" /> Habilitar Permisos
-                </Button>
-              )}
             </>
+          ) : (
+            <Button onClick={startScanner} className="w-full bg-blue-500 hover:bg-blue-600">
+              <Camera className="h-5 w-5 mr-2" /> Iniciar Cámara
+            </Button>
           )}
 
-          {scannedUser ? (
-            <div className="flex flex-col items-center gap-2 text-center">
-              {scannedUser.status === "Asistencia Confirmada" ? (
-                <CheckCircle className="h-16 w-16 text-green-500" />
-              ) : (
-                <XCircle className="h-16 w-16 text-red-500" />
-              )}
-              <p className="text-lg font-semibold">{scannedUser.name}</p>
-              <p className="text-sm text-gray-500">{scannedUser.status}</p>
+          {permissionDenied && (
+            <div className="bg-red-100 text-red-800 p-3 rounded-lg text-sm w-full">
+              Permiso de cámara denegado. Por favor, habilita el acceso a la cámara en la configuración de tu navegador.
             </div>
-          ) : (
-            cameraActive && <p className="text-gray-500 text-center">Apunta la cámara al código QR del asistente</p>
+          )}
+
+          {scannedResult && (
+            <div className="mt-4 w-full">
+              <div className="flex items-center justify-center mb-2">
+                <CheckCircle className="h-8 w-8 text-green-500 mr-2" />
+                <span className="font-semibold text-lg">¡Código escaneado!</span>
+              </div>
+              <Card className="w-full bg-green-50 border border-green-200">
+                <CardContent className="p-3">
+                  <p className="text-center break-words">{scannedResult}</p>
+                </CardContent>
+              </Card>
+            </div>
           )}
         </CardContent>
       </Card>
