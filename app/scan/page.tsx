@@ -61,6 +61,14 @@ export default function ScanAttendancePage() {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-6">
+      {loading && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+          <div className="p-4 bg-white rounded-lg flex flex-col items-center gap-2">
+            <p className="text-lg font-semibold">Procesando...</p>
+            <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-blue-500"></div>
+          </div>
+        </div>
+      )}
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle>Escanear Asistencia</CardTitle>
